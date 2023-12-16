@@ -1,0 +1,144 @@
+-- # Consigna
+
+Los Simpson
+
+![]()![]()![]()1: Actividades de los personajes
+
+Existen diferentes personajes de Los Simpson. De cada uno se sabe su nombre, el dinero que tiene y su felicidad (que puede ser mayor o igual a cero pero nunca negativa).
+
+Los personajes pueden realizan diferentes actividades que provocan cambios en ellos:
+
+* Ir a la escuela elemental de springfield: se le resta 20 a la felicidad del personaje, salvo que sea lisa, en cuyo caso aumenta la felicidad en igual cantidad.
+* Comer una cierta cantidad de donas: se le suma 10 de felicidad por cada dona comida y se le resta $10.
+* Ir a trabajar: gana una cantidad de dinero según qué trabajo sea. Si es la "planta nuclear" son 14$ (porque son 14 caracteres).
+* Ir a trabajar como director: implica ira a trabajar a "escuela elemental" y restar 20 de felicidad (como todo el que va a dicha escuela)
+* Agregar uno inventado que modifique de cierta manera a una persona.
+
+Modelar algunos personajes, implementar las acciones mencionadas y mostrar ejemplos de invocación y respuesta:
+
+* homero come una docena de donas
+* skinner va a trabajar como director
+* lisa va a la escuela y luego realiza la actividad inventada
+
+2. Logros
+
+También se definen logros que pueden ser alcanzados por una persona. Modelar los siguientes:
+
+* Ser millonario: lo alcanza  si tiene más dinero que el Sr. Burns
+* Alegrarse: dado un nivel de felicidad deseado, lo alcanza si su propia felicidad lo supera.
+* Ir a ver el programa de Krosti: lo  alcanza si tiene al menos $10
+* Agregar uno inventado por ustedes
+
+1. Se quiere averiguar si una actividad resulta decisiva para un personaje para alcanzar un logro. Es decir que alguien que no alcanza un logro, pero que cuando realiza la acción indicada sí lo logra.  Por ejemplo, si bart tiene 6$ no puede ir a ver a krosty, pero si va a trabajar para la "mafia" pasaría a tener 11 lo lograría por lo tanto, dicha actividad resulta decisiva.
+2. Dada una persona, un logro a alcanzar y una serie de actividades, encontrar la primera de ellas que sea decisiva y hacer que la persona la realice obteniendo cómo queda dicha persona. En caso que no haya ninguna decisiva, la persona permanece igual.
+3. Construir una lista infinita de actividades y mostrar al menos dos ejemplos de aplicacion de la funcíon anterior donde sucedan diferentes consecuencias. Justificar conceptualmente.
+
+-- PARTE 1
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+
+
+import Text.Read.Lex (Number)
+import Distribution.Simple (projectVersionRange)
+data Personaje = UnPersonaje{
+    nombre :: String,
+    dinero :: Int,
+    felicidad :: Int
+}deriving (Show , Eq)
+
+
+
+type Actividad = Personaje -> Personaje
+
+-- Funciones genéricas
+
+cambiarFelicidad :: (Int -> Int) -> Actividad
+cambiarFelicidad fun persona
+    |fun (felicidad persona) < 0 = persona {felicidad = 0}
+    | otherwise = persona{ felicidad = fun (felicidad persona)}
+
+
+cambiarDinero :: (Int -> Int) -> Actividad
+cambiarDinero fun persona = persona{ dinero = fun (dinero persona)}
+
+
+-- Actividades
+irAEscuela :: Actividad
+irAEscuela persona 
+    | nombre persona == "Lisa" = cambiarFelicidad (20 + ) persona
+    | otherwise = cambiarFelicidad (\n->n - 20 ) persona
+
+comerDonas :: Int -> Actividad
+comerDonas cant persona = cambiarDinero (\n->n - 10) (cambiarFelicidad (cant*10 +) persona)
+
+irATrabajar :: String -> Actividad
+irATrabajar trabajo persona = cambiarDinero ((length trabajo) +) persona
+
+trabajarComoDirector :: Actividad
+trabajarComoDirector persona = (irATrabajar "escuela elemental" . irAEscuela) persona
+
+irAlBar :: Actividad
+irAlBar persona = (cambiarDinero ((length (nombre persona)) - ) . cambiarFelicidad (50 + )) persona
+
+
+-- Personajes definidos
+
+lisa = UnPersonaje "Lisa" 100 50
+
+homero = UnPersonaje "Homero" 200 20
+
+skinner = UnPersonaje "Skinner" 500 25
+burns = UnPersonaje "M. Burns" 1000 30
+
+-- Personajes luego de las actividades
+
+homero_gordo = comerDonas 12 homero
+
+skinner_laburante = trabajarComoDirector skinner
+
+lisa_alcoholica = (irAEscuela . irAlBar) lisa
+
+
+
+
+-- PARTE 2
+
+-- Logros definidos
+type Logro = Personaje->Bool
+
+esMillonario :: Logro
+esMillonario persona = dinero persona > dinero burns
+
+alegrarse :: Int-> Logro
+alegrarse objetivo persona = felicidad persona > objetivo
+
+verAKrosti :: Logro
+verAKrosti persona = dinero persona >= 10
+
+noSerPobre :: Logro
+noSerPobre persona = dinero persona >= 110
+
+-- A)
+esDecisiva :: Personaje -> Actividad -> Logro -> Bool
+esDecisiva persona accion objetivo = (objetivo . accion) persona && not (objetivo persona)  -- el personaje no debe ser capaz de cumplir el logro antes de hacer la actividad
+
+-- B)
+encontrarDecisiva :: Personaje -> [Actividad] -> Logro -> Personaje
+encontrarDecisiva persona (actividad:listaActi) objetivo
+    | null (actividad:listaActi) = persona
+    | not (esDecisiva persona actividad objetivo) = encontrarDecisiva persona listaActi objetivo  -- Si no es decisiva, pasa a la siguiente
+    | otherwise = actividad persona
+
+
+
+-- C)
+---   EJEMPLOS CON LISTAS INFINITAS
+
+
+-- Lista infinita de actividades
+listaDeActividades = [comerDonas 10 , irAEscuela , irATrabajar "Bar de Moe"] ++ repeat irAEscuela
+
+-- Esto devuelve un personaje (definido completamente), ya que al haber encontrado que ir a trabajar al "Bar de Moe" es decisivo para lisa
+lisa_cambiada = encontrarDecisiva lisa listaDeActividades noSerPobre
+
+-- Por otra parte, homero_infeliz jamás va a terminar de definirse porque nunca va a encontrar una actividad que le sea decisiva para alcanzar dicho logro
+homero_infeliz = encontrarDecisiva homero listaDeActividades (alegrarse 1000)
