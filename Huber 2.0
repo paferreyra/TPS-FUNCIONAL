@@ -1,0 +1,99 @@
+--TADS
+Text.Show.Functions
+
+-- PUNTO 1
+data Chofer = Chofer{
+    nombre :: String,
+    kilometraje :: Int,
+    viajesTomados :: [Viaje],
+    condicionQueImpone :: condicionQueImpone
+}deriving (Show)
+
+data Viaje = Viaje{
+    fecha :: (Int,Int,Int),
+    cliente :: Cliente,
+    costo :: Int
+}deriving (Show)
+
+data Cliente = Cliente{
+    nombreCliente :: String,
+    domicilio :: String
+}deriving (Show)
+
+type CriterioQueImpone = Viaje -> Bool
+
+-- PUNTO 2
+
+cualquierViaje :: CriterioQueImpone
+cualquierViaje _ = true
+
+viajesDe200 :: CriterioQueImpone
+viajesDe200 = (> 200) . costo
+
+clienteNombreLargo :: Int -> CliterioQueImpone
+nombreConMasLetras n = (> n) . length . nombreCliente . cliente
+
+clienteNoViveEn :: String -> CondicionQueImpone
+clienteNoViveEn donde = (/= donde) . domicilio . cliente
+
+-- PUNTO 3
+
+lucas :: Cliente
+lucas = Cliente "Lucas" "Victoria"
+
+daniel :: Chofer
+daniel = Chofer "Daniel" 23500 [Viaje (20,4,2017) lucas 150] (clienteNoViveEn "Olivos")
+
+alejandra :: Chofer
+alejandra = Chofer "Alejandra" 180000 [] cualquierViaje
+
+-- PUNTO 4
+puedeTomarViaje :: Chofer -> Viaje -> Bool
+puedeTomarViaje unChofer unViaje = condicionQueImpone unChofer $ unViaje
+
+-- PUNTO 5
+liquidacionDe :: Chofer -> Int
+liquidacionDe = sum . map costo . viajesTomados
+
+-- PUNTO 6
+
+realizarViaje :: Viaje -> [Chofer] -> Viaje
+realizarViaje = efectuarViaje . choferQueMenosViajesTiene . filter (puedeTomarViaje viaje)
+
+choferQueMenosViajesTiene :: [Chofer] -> Chofer
+choferQueMenosViajesTiene [chofer] = chofer
+choferQueMenosViajesTiene (chofer1:chofer2:choferes) = choferQueMenosViajesTiene ((elQueMenosViajesHizo chofer1 chofer2):choferes)
+
+elQueMenosViajesHizo :: Chofer -> Chofer -> Chofer
+elQueMenosViajesHizo chofer1 chofer2
+    | cuantosViajes chofer1 > cuantosViajes chofer2 = chofer2
+    | otherwise = chofer1
+
+cuantosViajes :: [Viaje] -> Int
+cuantosViajes viajes = length . viajes
+
+efectuarViaje :: Viaje -> Chofer -> Chofer
+efectuarViaje viaje chofer = chofer {viaje : viajesTomados chofer}
+
+-- PUNTO 7
+-- A
+repetirViaje :: Viaje -> [Viaje]
+repetirViaje viaje = viaje : repetirViaje viaje
+
+nito = Chofer "Nito Infy" 70000 viajeInfinito $ clienteNombreLargo 3
+
+viajeInfinito = repetirViaje $ Viaje (11,3,2017) lucas 50
+
+-- B
+--liquidacionChofer nito no terminaria nunca
+
+-- C
+-- puedeTomarViaje (Viaje (2,5,2017) lucas 50) nito true porque
+-- no involucra a la lista de viajes
+
+-- PUNTO 8
+gongNeng :: Ord a => a -> (a-> Bool) -> (b -> a) -> [b] -> a
+gongNeng arg1 arg2 arg3 =
+     max arg1 . head . filter arg2 . map arg3
+
+    
